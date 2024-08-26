@@ -6,7 +6,8 @@ const app = express()
 import cors from 'cors'
 import 'dotenv/config'
 
-import { RAGApplicationBuilder, DocxLoader, OpenAi, PdfLoader, ExcelLoader, PptLoader } from '@llm-tools/embedjs'
+import { RAGApplicationBuilder, DocxLoader, OpenAi, PdfLoader, ExcelLoader, PptLoader, CsvLoader } from '@llm-tools/embedjs'
+import { DocLoader } from './customloaders/doc-loader.js'
 import { LanceDb } from '@llm-tools/embedjs/vectorDb/lance'
 
 app.use(cors())
@@ -25,17 +26,28 @@ new RAGApplicationBuilder()
         let unmappedFiles = []
 
         filesToLoop.forEach(({fileDir, fileType}) => {
-            if(fileType === "docx") {
-                result.addLoader(new DocxLoader({filePathOrUrl: fileDir}))
-            } else if(fileType === "pdf") {
-                result.addLoader(new PdfLoader({filePathOrUrl: fileDir}))
-            } else if(fileType === "xlsx") {
-                result.addLoader(new ExcelLoader({filePathOrUrl: fileDir}))
-            } else if(fileType === "pptx") {
-                result.addLoader(new PptLoader({filePathOrUrl: fileDir}))
-            } else {
+            try {
+                if(fileType === "docx") {
+                    result.addLoader(new DocxLoader({filePathOrUrl: fileDir}))
+                } else if(fileType === "doc") {
+                    result.addLoader(new DocLoader({filePathOrUrl: fileDir}))
+                } else if(fileType === "pdf") {
+                    result.addLoader(new PdfLoader({filePathOrUrl: fileDir}))
+                } else if(fileType === "xlsx") {
+                    result.addLoader(new ExcelLoader({filePathOrUrl: fileDir}))
+                } else if(fileType === "pptx") {
+                    result.addLoader(new PptLoader({filePathOrUrl: fileDir}))
+                } else if(fileType === "csv") {
+                    result.addLoader(new CsvLoader({filePathOrUrl: fileDir}))
+                } else {
+                    unmappedFiles = unmappedFiles.concat(fileDir)
+                }
+            } catch(err) {
+                console.log(`error on \"${fileDir}\"`, err)
                 unmappedFiles = unmappedFiles.concat(fileDir)
             }
+
+            //Add support for .JSON, .TXT, .HTML/HTM, .PPT, .RTF, .XLS, .MD
         })
 
         console.log(`Mapped ${filesToLoop.length - unmappedFiles.length} files`)
@@ -46,14 +58,28 @@ new RAGApplicationBuilder()
 
 const addLoadersRecursive = (dir) => {
     let files = []
-    fs.readdirSync(dir).forEach(File => {
-        const Absolute = path.join(dir, File)
-        if (fs.statSync(Absolute).isDirectory()) return addLoadersRecursive(Absolute)
-        else return files.push(Absolute)
-    })
-    return files.map(fileDir => ({fileDir, fileType: fileDir.split('.').pop().toLowerCase() }))
+    const addLoaders = (dir) => {
+        fs.readdirSync(dir).forEach(File => {
+            const Absolute = path.join(dir, File)
+            if (fs.statSync(Absolute).isDirectory()) return addLoaders(Absolute)
+            else return files.push(Absolute)
+        })
+        return files
+    }
+    const filesOut = addLoaders(dir).map(fileDir => ({fileDir, fileType: fileDir.split('.').pop().toLowerCase() }))
+    return filesOut
 }
 
+app.delete('/vector', async(req, res) => {
+    try {
+        ragApplication.deleteAllEmbeddings(true)
+        return res.sendStatus(200)
+    } catch (e) {
+        console.log(e)
+        return res.sendStatus(500)
+    }
+
+})
 
 app.get('/rag', async(req, res) => {
     if(ragApplication == null) {

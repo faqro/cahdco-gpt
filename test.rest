@@ -2,5 +2,5 @@ GET http://localhost:3001/rag
 Content-Type: application/json
 
 {
-    "message": "What are the main arguments made by Faraaz"
+    "message": "What is CAHDCO?"
 }
