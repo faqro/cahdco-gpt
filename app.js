@@ -22,33 +22,47 @@ new RAGApplicationBuilder()
     .setSearchResultCount(5)
     .build()
     .then(async(result) => {
+        if(!process.env.FORCE_REEMBED || process.env.FORCE_REEMBED.toLowerCase() !== "true") {
+            ragApplication = result
+            console.log('Started RAG without re-embed')
+            return null
+        }
+        
         const filesToLoop = addLoadersRecursive(DOCUMENT_DIRECTORY)
         let unmappedFiles = []
 
-        filesToLoop.forEach(({fileDir, fileType}) => {
-            try {
-                if(fileType === "docx") {
-                    result.addLoader(new DocxLoader({filePathOrUrl: fileDir}))
-                } else if(fileType === "doc") {
-                    result.addLoader(new DocLoader({filePathOrUrl: fileDir}))
-                } else if(fileType === "pdf") {
-                    result.addLoader(new PdfLoader({filePathOrUrl: fileDir}))
-                } else if(fileType === "xlsx") {
-                    result.addLoader(new ExcelLoader({filePathOrUrl: fileDir}))
-                } else if(fileType === "pptx") {
-                    result.addLoader(new PptLoader({filePathOrUrl: fileDir}))
-                } else if(fileType === "csv") {
-                    result.addLoader(new CsvLoader({filePathOrUrl: fileDir}))
-                } else {
+        
+        console.log(`Created ${Math.ceil(filesToLoop.length/100)} file blocks`)
+        for(let i=0; i<Math.ceil(filesToLoop.length/100); i++) {
+            const fileGroup = filesToLoop.slice(i*100, Math.min(((i+1)*100), filesToLoop.length))
+            console.log(`Embedding file group ${i}`)
+
+            await Promise.all(fileGroup.map(async({fileType, fileDir}) => {
+
+                try {
+                    if(fileType === "docx") {
+                        await result.addLoader(new DocxLoader({filePathOrUrl: fileDir}))
+                    } else if(fileType === "doc") {
+                        await result.addLoader(new DocLoader({filePathOrUrl: fileDir}))
+                    } else if(fileType === "pdf") {
+                        await result.addLoader(new PdfLoader({filePathOrUrl: fileDir}))
+                    } else if(fileType === "xlsx") {
+                        await result.addLoader(new ExcelLoader({filePathOrUrl: fileDir}))
+                    } else if(fileType === "pptx") {
+                        await result.addLoader(new PptLoader({filePathOrUrl: fileDir}))
+                    } else if(fileType === "csv") {
+                        await result.addLoader(new CsvLoader({filePathOrUrl: fileDir}))
+                    } else {
+                        unmappedFiles = unmappedFiles.concat(fileDir)
+                    }
+                } catch(err) {
+                    console.log(`\n\nError on \"${fileDir}\":\n${err}`)
                     unmappedFiles = unmappedFiles.concat(fileDir)
                 }
-            } catch(err) {
-                console.log(`error on \"${fileDir}\"`, err)
-                unmappedFiles = unmappedFiles.concat(fileDir)
-            }
 
-            //Add support for .JSON, .TXT, .HTML/HTM, .PPT, .RTF, .XLS, .MD
-        })
+                //Add support for .JSON, .TXT, .HTML/HTM, .PPT, .RTF, .XLS, .MD
+            }))
+        }
 
         console.log(`Mapped ${filesToLoop.length - unmappedFiles.length} files`)
         console.log(`${unmappedFiles.length} unmapped files`, unmappedFiles)
