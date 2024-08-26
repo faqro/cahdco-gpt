@@ -1,3 +1,7 @@
+# Context Documents
+docs
+lancedb
+
 # Logs
 logs
 *.log

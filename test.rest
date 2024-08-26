@@ -1,6 +1,6 @@
-GET http://localhost:3001/main
+GET http://localhost:3001/rag
 Content-Type: application/json
 
 {
-    "message": "Who is the project manager at 212 Carruthers Avenue"
+    "message": "What are the main arguments made by Faraaz"
 }
