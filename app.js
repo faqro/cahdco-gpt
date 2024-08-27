@@ -14,6 +14,7 @@ app.use(cors())
 app.use(express.json())
 
 const DOCUMENT_DIRECTORY = "docs"
+const FORCE_REEMBED = false
 
 let ragApplication = null
 new RAGApplicationBuilder()
@@ -22,7 +23,7 @@ new RAGApplicationBuilder()
     .setSearchResultCount(5)
     .build()
     .then(async(result) => {
-        if(!process.env.FORCE_REEMBED || process.env.FORCE_REEMBED.toLowerCase() !== "true") {
+        if(!FORCE_REEMBED) {
             ragApplication = result
             console.log('Started RAG without re-embed')
             return null
@@ -95,18 +96,63 @@ app.delete('/vector', async(req, res) => {
 
 })
 
-app.get('/rag', async(req, res) => {
+const getDirRelative = (dir) => {
+    let currentDir = path.dirname(dir)
+    let relativeDir = path.basename(dir)
+
+    while (path.relative(currentDir, DOCUMENT_DIRECTORY) !== '' && currentDir !== '.' && currentDir !== '') {
+        relativeDir = `${path.basename(currentDir)}\\${relativeDir}`
+        currentDir = path.dirname(currentDir)
+    }
+    return relativeDir
+}
+
+app.get('/files', (req, res) => {
+    if(req.query && req.query.item) {
+        const fileLocation = path.join(path.resolve(DOCUMENT_DIRECTORY), req.query.item)
+
+        try {
+            let fileIsDir = fs.lstatSync(fileLocation).isDirectory()
+
+            if(fileIsDir) {
+                return res.sendStatus(400)
+            } else {
+                return res.sendFile(path.resolve(fileLocation))
+            }
+        } catch(e) {
+            if(e.code == 'ENOENT') {
+                return res.sendStatus(404)
+            } else {
+                console.log(e)
+                return res.sendStatus(500)
+            }
+        }
+    } else {
+        return res.sendStatus(404)
+    }
+})
+
+app.post('/rag', async(req, res) => {
     if(ragApplication == null) {
         return res.sendStatus(425)
+    }
+
+    if(!(req.body && req.body.message && req.body.message.length>2)) {
+        return res.sendStatus(400)
     }
 
     try {
         const response = await ragApplication.query(req.body.message)
 
-        return res.status(200).json(response)
+        return res.status(200).json({
+            message: response.content,
+            referenceDocs: response.sources.map(sourceDoc => getDirRelative(sourceDoc.source))
+        })
     } catch (err) {
         return res.status(500).json(err)
     }
 })
+
+app.use(express.static('static'))
 
 export {app}
