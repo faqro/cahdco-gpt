@@ -1,7 +1,7 @@
 # CahdcoGPT
  
 RAG LLM processing tool for enterprise documentation
-Designed for [[cahdco.org]]
+Designed for cahdco.org
 
 Simple question/answering from a limited dataset
 
