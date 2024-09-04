@@ -7,6 +7,7 @@ Simple question/answering from a limited dataset
 
 Built by Faiz Jan and Faraaz Jan
 Using LanceDB and EmbedJS
+Frontend @ https://github.com/faqro/cahdco-gpt-frontend
 
 NOTE: An OpenAI API key is needed for this project. This can be done for free at openai.com
 NOTE: Node.JS is required for this project.
