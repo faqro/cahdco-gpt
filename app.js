@@ -62,6 +62,8 @@ new RAGApplicationBuilder()
                 }
 
                 //Add support for .JSON, .TXT, .HTML/HTM, .PPT, .RTF, .XLS, .MD
+                //Add failsafe for .docx, .pdf, .xlsx, and .pptx (officeParser, any-text, textract)
+                //Switch vector DB (LanceDB causes issues)
             }))
         }
 
